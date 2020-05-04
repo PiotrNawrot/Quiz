@@ -1,0 +1,177 @@
+* {
+    box-sizing: border-box;
+    font-family: monospace;
+}
+
+body{
+    background-color: #56a5eb;
+    padding: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;    
+    text-align: center;
+}
+
+#container{
+    width: 1680px;
+    max-width: 90%;
+    display: grid;
+    grid-column-gap: 10px;
+    grid-row-gap: 10px;
+
+    grid-template-areas: 
+        ". intro-box intro-box intro-box ."
+        "quiz-container quiz-container quiz-container game-stats game-stats";
+
+    grid-template-columns: 2fr 1fr 3fr 2fr 2fr;
+    grid-template-rows: 1fr 3fr;
+}
+
+.correct{
+    background-color: green;
+}
+
+.wrong{
+    background-color: red;
+}
+
+#game-stats{
+    background-color: white;
+    grid-area: game-stats;
+    
+    display: grid;
+
+    font-size: 1.5rem;
+    font-weight: bold;
+
+    border-radius: 6px;
+    padding: 12px;
+}
+
+#quiz-container{
+    background-color: white;
+    grid-area: quiz-container;
+    row-gap: 10px;
+
+    display: grid;
+    
+    border-radius: 6px;
+    padding: 12px;
+}
+
+#move-around-quiz{
+    display: grid;
+    grid-column-gap: 15px;
+    grid-template-columns: 1fr 1fr;
+}
+
+#intro-box {
+    background-color: white;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 2rem;
+    grid-area: intro-box;
+}
+
+#controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    row-gap: 20px;
+}
+
+.btn-grid{
+    display: grid;
+    grid-template-columns: auto auto;
+    row-gap: 30px;
+    column-gap: 30px;
+    margin: 15px;
+}
+
+.btn{
+    border: 2px solid green;
+    background-color: green;
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: white;
+}
+
+.btn:hover{
+    border: 1px solid black;
+    box-shadow: 0 0.5rem 1.4rem 0 rgba(86, 185, 235, 0.5);
+}
+
+.hide {
+    display: none;
+} 
+
+#intro-text, #question {
+    font-size: 1.5rem;
+}
+
+.start-btn, .ranking-btn, .next-btn, .previous-btn, 
+.exit-btn, .finish-btn, .score-btn, .score-stats-btn{
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding: 10px;
+}
+
+.choosen-answer {
+    background-color: black;
+}
+
+.wrong-answer {
+    background-color: red;
+}
+
+.disabled-button {
+    background: #dddddd;
+}
+
+@media only screen and (max-width: 767px) {
+    #container{    
+        grid-template-areas: 
+            "intro-box"
+            "quiz-container"
+            "game-stats";
+
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 3fr 2fr;
+    }
+
+    .btn-grid{
+        display: grid;
+        grid-template-columns: auto auto;
+        row-gap: 15px;
+        column-gap: 15px;
+        margin: 10px;
+    }
+
+    .start-btn, .ranking-btn, .next-btn, .previous-btn, 
+    .exit-btn, .finish-btn, .score-btn, .score-stats-btn{
+        font-size: 1rem;
+        font-weight: bold;
+        padding: 10px;
+    }
+
+    #intro-text, #question {
+        font-size: 1rem;
+    }
+
+    #quiz-container{
+        background-color: white;
+        grid-area: quiz-container;
+        row-gap: 8px;
+    
+        display: grid;
+        
+        border-radius: 6px;
+        padding: 10px;
+    }
+}
+
+
