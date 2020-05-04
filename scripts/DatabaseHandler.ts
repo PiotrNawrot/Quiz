@@ -1,6 +1,6 @@
 export class QuizDBEntry {
-    totalScore : number;
-    statistics : string;
+    private totalScore : number;
+    private statistics : string;
 
     constructor (totalScore : number, statistics : string) {
         this.totalScore = totalScore;
@@ -9,26 +9,33 @@ export class QuizDBEntry {
 }
 
 export class DatabaseHandler {
-    database : IDBDatabase;
-    rankingSize : number;
+    private database : IDBDatabase;
+    private rankingSize : number;
 
     constructor (rankingSize : number = 4) {
         this.rankingSize = rankingSize;
-        const databaseRequest : IDBOpenDBRequest = window.indexedDB.open("MyTestDatabase", 14);
+        this.database = null;
+    }
 
-        databaseRequest.onsuccess = () => {
-            this.database = databaseRequest.result;
-        }
+    open () {
+        return new Promise((resolve, reject) => {
+            const databaseRequest : IDBOpenDBRequest = window.indexedDB.open("MyTestDatabase", 14);
 
-        databaseRequest.onerror = () => {
-            console.error("DB open error");
-        }
+            databaseRequest.onsuccess = () => {
+                this.database = databaseRequest.result;
+                resolve();
+            }
 
-        databaseRequest.onupgradeneeded = (event : any) => {
-            const tmp = event.currentTarget.result;
-            tmp.deleteObjectStore("quizDB");
-            tmp.createObjectStore("quizDB", {keyPath: "id", autoIncrement : true});
-        }
+            databaseRequest.onerror = () => {
+                console.error("DB open error");
+                reject();
+            }
+
+            databaseRequest.onupgradeneeded = (event : any) => {
+                const tmp = event.currentTarget.result;
+                tmp.createObjectStore("quizDB", {keyPath: "id", autoIncrement : true});
+            }
+        })
     }
 
     addToDb (entry : QuizDBEntry) {
@@ -56,7 +63,7 @@ export class DatabaseHandler {
     }
 
     fetchRankingFromDb (answerButtonsElement : HTMLElement) {
-        const transaction : IDBTransaction= this.database.transaction(["quizDB"], "readwrite");
+        const transaction : IDBTransaction= this.database.transaction(["quizDB"], "readonly");
 
         transaction.onerror = (event : Event) => {
             console.error("Rollback, and here is error: ", transaction.error);

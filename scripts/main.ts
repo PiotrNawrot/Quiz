@@ -21,13 +21,12 @@ const controlsSection = document.getElementById('controls') as HTMLElement;
 const scoreCounterElement = document.getElementById('score-counter') as HTMLElement;
 const questionCounterElement = document.getElementById('question-counter') as HTMLElement;
 
-const hideClass = 'hide';
+const hideClass : string = 'hide';
 
 const currentQuiz : Quiz = JSON.parse(quiz);
-const quizLength = currentQuiz.quiz.length;
+const quizLength : number = currentQuiz.quiz.length;
 
 const quizStatistics : QuizStatistics = new QuizStatistics(currentQuiz);
-const databaseHandler = new DatabaseHandler();
 
 let currentQuestion : number = -1;
 let answeredQuestions : number = 0;
@@ -60,18 +59,24 @@ function onPageLoad() {
     rankingButton.addEventListener('click', fetchRanking);
 }
 
-function saveScoreAndStats () {
+async function saveScoreAndStats () {
+    const databaseHandler : DatabaseHandler = new DatabaseHandler();
+    await databaseHandler.open();
     databaseHandler.addToDb(new QuizDBEntry(quizStatistics.finalScore,
         JSON.stringify(quizStatistics)));
     reloadPage();
 }
 
-function saveScore() {
+async function saveScore() {
+    const databaseHandler : DatabaseHandler = new DatabaseHandler();
+    await databaseHandler.open();
     databaseHandler.addToDb(new QuizDBEntry(quizStatistics.finalScore, ''));
     reloadPage();
 }
 
-function fetchRanking() {
+async function fetchRanking() {
+    const databaseHandler : DatabaseHandler = new DatabaseHandler();
+    await databaseHandler.open();
     removeClass(questionContainerElement, hideClass);
     addClass(startButton, hideClass);
     addClass(rankingButton, hideClass);

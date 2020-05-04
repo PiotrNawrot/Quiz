@@ -1,6 +1,6 @@
 export class Timer {
-    counter: number;
-    myInterval;
+    private counter: number;
+    private myInterval;
 
     constructor() {
         this.counter = 0;
