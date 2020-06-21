@@ -1,0 +1,17 @@
+html
+    head
+        link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css")
+        style
+            include main.css
+    body
+    section#container
+        section#intro-box
+            p#intro-text Hello, #{username}!
+        section#quiz-container
+            a.btn(href='/quiz') Start the game!
+            a.btn(href='/change_password') Change your password!
+            a.btn(href='/logout') Logout
+        section#game-stats
+            p#question-counter Question: 1/?
+            p#score-counter Current score: 0
+            button#exit-btn.exit-btn.btn Exit

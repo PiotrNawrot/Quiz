@@ -9,7 +9,7 @@ export class QuizDBEntry {
 }
 
 export class DatabaseHandler {
-    private database : IDBDatabase;
+    private database : IDBDatabase | null;
     private rankingSize : number;
 
     constructor (rankingSize : number = 4) {
@@ -39,7 +39,7 @@ export class DatabaseHandler {
     }
 
     addToDb (entry : QuizDBEntry) {
-        const transaction : IDBTransaction = this.database.transaction(["quizDB"], "readwrite");
+        const transaction : IDBTransaction = this.database!.transaction(["quizDB"], "readwrite");
         const rankingSize = this.rankingSize;
 
         transaction.onerror = (event : Event) => {
@@ -56,14 +56,14 @@ export class DatabaseHandler {
                 }
 
                 const rankingArray = event.target.result;
-                rankingArray.sort((a,b) => a.totalScore >= b.totalScore);
+                rankingArray.sort((a:any,b:any) => a.totalScore >= b.totalScore);
                 objectStore.delete(rankingArray[rankingSize].id);
             };
         }
     }
 
     fetchRankingFromDb (answerButtonsElement : HTMLElement) {
-        const transaction : IDBTransaction= this.database.transaction(["quizDB"], "readonly");
+        const transaction : IDBTransaction= this.database!.transaction(["quizDB"], "readonly");
 
         transaction.onerror = (event : Event) => {
             console.error("Rollback, and here is error: ", transaction.error);
@@ -73,7 +73,7 @@ export class DatabaseHandler {
 
         objectStore.getAll().onsuccess = function(event : any) {
             const rankingArray = event.target.result;
-            rankingArray.sort((a,b) => a.totalScore >= b.totalScore);
+            rankingArray.sort((a:any,b:any) => a.totalScore >= b.totalScore);
 
             for(let i = 0; i < rankingArray.length; i++){
                 const button = document.createElement('button');

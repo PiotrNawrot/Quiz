@@ -204,7 +204,7 @@ function showQuestion(question : Question) {
     });
 }
 
-function selectAnswerListener(ev : Event) {
+function selectAnswerListener(this: any, ev : Event) {
     if (quizStatistics.question[currentQuestion].chosenAnswer === ''){
         answeredQuestions += 1;
     }

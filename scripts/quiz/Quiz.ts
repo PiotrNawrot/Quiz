@@ -14,10 +14,10 @@ export interface Quiz {
 }
 
 export class Statistics {
-    timeSpent : number;
-    latestTimerReading : number;
-    chosenAnswer : string;
-    correctAnswer : string;
+    timeSpent : number = 0;
+    latestTimerReading : number = 0;
+    chosenAnswer : string = "";
+    correctAnswer : string = "";
 }
 
 export class QuizStatistics {

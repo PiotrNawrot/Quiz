@@ -1,0 +1,29 @@
+doctype html
+head
+    meta(charset='utf-8')
+    meta(http-equiv='X-UA-Compatible' content='IE=edge')
+    title Quiz Algebraiczny
+    meta(name='viewport' content='width=device-width, initial-scale=1')
+    style
+        include main.css
+    script(type='module' src='public/src/main.js' defer)
+section#container
+    section#intro-box
+        p#intro-text Intro Text
+    section#quiz-container
+        section#question-container.hide
+            section#question Question
+            section#answer-btns.btn-grid
+        section#controls
+            button#start-btn.start-btn.btn Start new quiz!
+            button#ranking-btn.ranking-btn.btn High scores
+        section#move-around-quiz
+            button#previous-btn.previous-btn.btn.hide Previous Question
+            button#next-btn.next-btn.btn.hide Next Question
+            button#score-btn.score-btn.btn.hide Save score
+            button#score-stats-btn.score-stats-btn.btn.hide Save score&amp;stats
+        button#finish-btn.finish-btn.btn.hide Submit Test
+    section#game-stats
+        p#question-counter Question: 1/?
+        p#score-counter Current score: 0
+        button#exit-btn.exit-btn.btn Exit
