@@ -9,12 +9,16 @@ import {DbHandlerOpen, DbHandlerAll, DbHandlerRun, DbHandlerGet} from "./DBWrapp
 import {User} from "./User"
 import {promisify} from 'util';
 import logger from 'morgan';
+import { QuizStatistics, Quiz, QuizStatisticsDB } from "../quiz/Quiz";
+import e = require("express");
 
 sqlite.verbose();
 const csrfProtection = csurf({ cookie: true });
 const app : express.Application = express();
 const sessionStore : MemoryStore = new MemoryStore();
 const user : User = new User();
+
+console.log('wypisz cokolwiek');
 
 const completeUserLogout = (request: express.Request, response: express.Response, next: express.NextFunction) => {
     sessionStore.all((err : any, sessions : any) => {
@@ -67,6 +71,103 @@ app.use((request: express.Request, response: express.Response, next: express.Nex
     next();
 })
 
+async function getQuizlist(db: sqlite.Database) {
+    return DbHandlerAll(db, "SELECT quizname FROM quiz", []).then((rows : any[]) => {
+        return rows.map((row) => row.quizname);
+    })
+}
+
+async function getQuiz(db: sqlite.Database, quizname : string) {
+    return DbHandlerGet(db, "SELECT * FROM quiz WHERE quizname = ?;", [quizname]).then((row : any) => {
+        return row.quizcontent;
+    })
+}
+
+async function addQuizStats(db: sqlite.Database, quizname : string, username : string, quizstatistics : string) {
+    return DbHandlerRun(db,
+        "INSERT OR REPLACE INTO quizstats (quizname, username, quizstatistics) VALUES (?, ?, ?);",
+            [quizname, username, quizstatistics]);
+}
+
+async function isQuizSolved(db: sqlite.Database, quizname : string, username : string) {
+    return DbHandlerGet(db, "SELECT * FROM quizstats WHERE quizname = ? AND username = ?;", [quizname, username]).then((row : any) => {
+        console.log(row);
+
+        if (row) {
+            return true;
+        } else {
+            return false;
+        }
+    })
+}
+
+// Server api
+app.get('/api/quizlist', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    const quizlist = await getQuizlist(response.locals.db);
+    response.send(quizlist);
+});
+
+app.get('/api/quiz/:id', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    if (!isUserLogged(request)) {
+        next(createError(404));
+    }
+
+    const quizContent = await getQuiz(response.locals.db, request.params.id);
+
+    request.session!.quizRequestTime = new Date().getTime() / 1000;
+    response.send(quizContent);
+});
+
+app.get('/api/quiz/solved/:id', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    if (!isUserLogged(request)) {
+        next(createError(404));
+    }
+
+    console.log('issolved query');
+    response.send(await isQuizSolved(response.locals.db, request.session!.username, request.params.id));
+});
+
+async function rateQuiz(quiz : Quiz, quizStatistics : QuizStatisticsDB, totalServerTime : number) : Promise<string> {
+    const quizLength = quiz.quiz.length;
+    const ratedQuiz : QuizStatistics = new QuizStatistics(quiz);
+
+    let totalPenalty : number = 0;
+
+    for(let i = 0; i < quizLength; i++){
+        const correctAnswer : string = ratedQuiz.question[i].correctAnswer;
+        quizStatistics.question[i].chosenAnswer = ratedQuiz.question[i].chosenAnswer;
+        const chosenAnswer : string = ratedQuiz.question[i].chosenAnswer;
+        ratedQuiz.question[i].timeSpent = totalServerTime * quizStatistics.question[i].timeSpent;
+
+        if (correctAnswer !== chosenAnswer){
+            totalPenalty += quiz.quiz[i].penalty;
+        }
+    }
+
+    ratedQuiz.finalScore = totalPenalty + totalServerTime;
+
+    return JSON.stringify(ratedQuiz);
+}
+
+app.post('/api/quiz/:id', csrfProtection, async function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    if (!isUserLogged(request)) {
+        next(createError(404));
+    }
+
+    if (isQuizSolved(response.locals.db, request.session!.username, request.params.id)) {
+        next(createError(404));
+    }
+
+    console.log('poszedl post');
+
+    const quiz : Quiz = await getQuiz(response.locals.db, request.params.id);
+    const quizStatistics : QuizStatistics = new QuizStatistics(quiz);
+    const ratedQuiz : string = await rateQuiz(quiz, quizStatistics, new Date().getTime() / 1000 -
+                                                                            request.session!.quizRequestTime);
+    await addQuizStats(response.locals.db, request.session!.username, request.params.id, ratedQuiz);
+    response.redirect('/');
+});
+
 // Main page rendering
 app.get('/', csrfProtection, async function(request: express.Request, response: express.Response, next: express.NextFunction) {
     if (isUserLogged(request)){
@@ -78,8 +179,10 @@ app.get('/', csrfProtection, async function(request: express.Request, response: 
 
 // Quiz page rendering
 app.get('/quiz', csrfProtection, function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    console.log('get quiz');
     if (isUserLogged(request)){
-        response.render('quiz', {username: request.session!.username});
+        console.log('XD');
+        response.render('quiz', {username: request.session!.username, csrfToken: request.csrfToken()});
     } else {
         next(createError(404));
     }

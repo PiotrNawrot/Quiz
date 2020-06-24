@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx mocha -r ts-node/register src/tests/tests.ts",
+    "test": "npx mocha -r ts-node/register scripts/tests/tests.ts",
     "start": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && node dist/server.js",
     "createdb": "npx ts-node scripts/server/CreateDB.ts"
   },

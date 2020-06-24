@@ -11,17 +11,20 @@ section#container
     section#intro-box
         p#intro-text Intro Text
     section#quiz-container
+        section#quizlist-container
+            section#quizlist-msg quizlist-msg
+            section#quizlist-grid.btn-grid
         section#question-container.hide
-            section#question Question
-            section#answer-btns.btn-grid
-        section#controls
-            button#start-btn.start-btn.btn Start new quiz!
-            button#ranking-btn.ranking-btn.btn High scores
-        section#move-around-quiz
+            section#question.hide Question
+            section#answer-btns.btn-grid.hide
+        section#controls.hide
+            button#start-btn.start-btn.btn.hide Start new quiz!
+            button#ranking-btn.ranking-btn.btn.hide High scores
+        section#move-around-quiz.hide
             button#previous-btn.previous-btn.btn.hide Previous Question
             button#next-btn.next-btn.btn.hide Next Question
-            button#score-btn.score-btn.btn.hide Save score
-            button#score-stats-btn.score-stats-btn.btn.hide Save score&amp;stats
+        button#score-btn.score-btn.btn.hide Save score
+        input(id = '_csrf' type='hidden', name='_csrf', value=csrfToken)
         button#finish-btn.finish-btn.btn.hide Submit Test
     section#game-stats
         p#question-counter Question: 1/?

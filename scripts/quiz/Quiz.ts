@@ -10,6 +10,7 @@ export interface Question {
 }
 
 export interface Quiz {
+    quizname: string;
     quiz: Question[];
 }
 
@@ -40,6 +41,23 @@ export class QuizStatistics {
             }
 
             this.question.push(statistics);
+        }
+    }
+}
+
+export class StatisticsDB {
+    chosenAnswer : string = "";
+    timeSpent : number = 0;
+}
+
+export class QuizStatisticsDB {
+    question : StatisticsDB[];
+
+    constructor(length : number) {
+        this.question = [];
+
+        for(let i = 0; i < length; i++) {
+            this.question.push(new StatisticsDB());
         }
     }
 }

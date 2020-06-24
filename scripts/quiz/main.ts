@@ -1,7 +1,5 @@
-import { Quiz, Question, QuizStatistics } from "./Quiz.js";
-import { DatabaseHandler , QuizDBEntry} from "./DatabaseHandler.js";
+import { Quiz, Question, QuizStatistics, QuizStatisticsDB } from "./Quiz.js";
 import { Timer } from "./Timer.js"
-import { quiz } from "./utils.js";
 
 const startButton = document.getElementById('start-btn') as HTMLButtonElement;
 const rankingButton = document.getElementById('ranking-btn') as HTMLButtonElement;
@@ -10,23 +8,26 @@ const previousButton = document.getElementById('previous-btn') as HTMLButtonElem
 const finishButton = document.getElementById('finish-btn') as HTMLButtonElement;
 const exitButton = document.getElementById('exit-btn') as HTMLButtonElement;
 const saveScoreButton = document.getElementById('score-btn') as HTMLButtonElement;
-const saveScoreAndStatsButton = document.getElementById('score-stats-btn') as HTMLButtonElement;
 
 const introText = document.getElementById('intro-text') as HTMLElement;
 const questionContainerElement = document.getElementById('question-container') as HTMLElement;
 const questionElement = document.getElementById('question') as HTMLElement;
 const answerButtonsElement = document.getElementById('answer-btns') as HTMLElement;
 const controlsSection = document.getElementById('controls') as HTMLElement;
+// Quizlist
+const quizlistContainer = document.getElementById('quizlist-container') as HTMLElement;
+const quizlistGrid = document.getElementById('quizlist-grid') as HTMLElement;
+const quizlistMessage = document.getElementById('quizlist-msg') as HTMLElement;
 
 const scoreCounterElement = document.getElementById('score-counter') as HTMLElement;
 const questionCounterElement = document.getElementById('question-counter') as HTMLElement;
 
 const hideClass : string = 'hide';
 
-const currentQuiz : Quiz = JSON.parse(quiz);
-const quizLength : number = currentQuiz.quiz.length;
-
-const quizStatistics : QuizStatistics = new QuizStatistics(currentQuiz);
+let currentQuiz : Quiz;
+let quizLength : number;
+let quizStatistics : QuizStatistics;
+let quizname : string;
 
 let currentQuestion : number = -1;
 let answeredQuestions : number = 0;
@@ -34,13 +35,68 @@ let timer : Timer;
 
 onPageLoad();
 
-function onPageLoad() {
+async function selectQuizListener(this: any, ev : Event) {
+    quizname = this.innerHTML;
+
+    currentQuiz = await getQuizConentByQuizname();
+    quizLength = currentQuiz.quiz.length;
+    quizStatistics = new QuizStatistics(currentQuiz);
+
+    addClass(quizlistContainer, hideClass);
+    addClass(quizlistGrid, hideClass);
+    addClass(quizlistMessage, hideClass);
+    removeClass(controlsSection, hideClass);
+    removeClass(startButton, hideClass);
+    removeClass(rankingButton, hideClass);
+
+    if (await solvedAlready()) {
+        startButton.innerHTML = 'You solved it already';
+        startButton.classList.add('wrong-answer');
+    }
+}
+
+async function prepareQuizScreen() {
+    quizlistMessage.innerHTML = 'Choose the quiz!';
+    const quizlist = await getQuizzesNamesList();
+
+    for(let i = 0; i < quizlist.length; i++) {
+        const buttonText : string = quizlist[i];
+
+        const button = document.createElement('button');
+        button.innerHTML = buttonText;
+        button.classList.add('btn');
+        button.addEventListener('click', selectQuizListener);
+        quizlistGrid.appendChild(button);
+    }
+}
+
+async function getQuizConentByQuizname() : Promise<Quiz> {
+    return await fetch('http://localhost:8080/api/quiz/' + quizname).then((response) => {
+        return response.json();
+    });
+}
+
+async function getQuizzesNamesList(): Promise<string[]> {
+    return await fetch('http://localhost:8080/api/quizlist')
+      .then(response => response.json());
+}
+
+async function solvedAlready(): Promise<boolean> {
+    return await fetch('http://localhost:8080/api/quiz/solved/' + quizname)
+      .then(response => response.json());
+}
+
+async function onPageLoad() {
     introText.innerHTML = "<pre>" +
     "Welcome to the quiz!\n"
     + "</pre>";
     exitButton.addEventListener('click', reloadPage);
 
-    startButton.addEventListener('click', (ev: Event) => {
+    startButton.addEventListener('click', async (ev: Event) => {
+        if (await solvedAlready()) {
+            return;
+        }
+
         timer = new Timer();
         addClass(startButton, hideClass);
         addClass(rankingButton, hideClass);
@@ -50,40 +106,46 @@ function onPageLoad() {
         removeClass(nextButton, hideClass);
         removeClass(previousButton, hideClass);
         removeClass(questionContainerElement, hideClass);
+        removeClass(answerButtonsElement, hideClass);
+        removeClass(questionElement, hideClass);
         setNextQuestion();
     });
 
     nextButton.addEventListener('click', setNextQuestion);
     previousButton.addEventListener('click', setPreviousQuestion);
+    previousButton.classList.add('disabled-button');
     finishButton.addEventListener('click', finishTest);
+    finishButton.classList.add('disabled-button');
     rankingButton.addEventListener('click', fetchRanking);
-}
 
-async function saveScoreAndStats () {
-    const databaseHandler : DatabaseHandler = new DatabaseHandler();
-    await databaseHandler.open();
-    databaseHandler.addToDb(new QuizDBEntry(quizStatistics.finalScore,
-        JSON.stringify(quizStatistics)));
-    reloadPage();
-}
-
-async function saveScore() {
-    const databaseHandler : DatabaseHandler = new DatabaseHandler();
-    await databaseHandler.open();
-    databaseHandler.addToDb(new QuizDBEntry(quizStatistics.finalScore, ''));
-    reloadPage();
+    await prepareQuizScreen();
 }
 
 async function fetchRanking() {
-    const databaseHandler : DatabaseHandler = new DatabaseHandler();
-    await databaseHandler.open();
     removeClass(questionContainerElement, hideClass);
     addClass(startButton, hideClass);
     addClass(rankingButton, hideClass);
 
     questionElement.innerHTML = `Highest Scores!`;
 
-    databaseHandler.fetchRankingFromDb(answerButtonsElement);
+    const rankingArray : QuizStatistics[] = await fetch(this.getUrl('http://localhost:8080/api/quiz/' + quizname), {})
+            .then(response => response.json());
+
+    rankingArray.sort( (a : QuizStatistics, b : QuizStatistics) => {
+        if (a.finalScore >= b.finalScore) {
+            return 1;
+        } else {
+            return -1;
+        }
+    });
+
+    for(let i = 0; i < rankingArray.length; i++){
+        const button = document.createElement('button');
+        button.innerHTML = `${i + 1}. ${rankingArray[i].finalScore}`;
+
+        button.classList.add('btn');
+        answerButtonsElement.appendChild(button);
+    }
 }
 
 function reloadPage() {
@@ -106,59 +168,72 @@ function addQuestionTime() {
             quizStatistics.question[currentQuestion].latestTimerReading;
 }
 
-function finishTest() {
+async function finishTest() {
     if (answeredQuestions !== quizLength) {
         return;
     }
 
     addQuestionTime();
-
-    let totalPenalty : number = 0;
-    let totalScore = 0;
     timer.stopTimer();
-
     resetQuestion();
+
+    const timeStamp = timer.getCounter();
+    const quizStatisticsDB : QuizStatisticsDB = new QuizStatisticsDB(quizLength);
+
+    for(let i = 0; i < quizLength; i++) {
+        quizStatisticsDB.question[i].chosenAnswer = quizStatistics.question[i].chosenAnswer;
+        quizStatisticsDB.question[i].timeSpent = quizStatistics.question[i].timeSpent / timeStamp;
+    }
+
+    const csrf = document.getElementById('_csrf') as HTMLInputElement;
+    await fetch(this.getUrl('http://localhost:8080/api/quiz/' + quizname), {
+        method: 'POST',
+        body: JSON.stringify(quizStatisticsDB),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf.value
+        }
+    });
+
+    // const myResult : QuizStatistics =
+    //             await fetch('http://localhost:8080/api/quiz/solved/' + quizname)
+    //                 .then(response => response.json());
 
     questionElement.innerHTML =
         `Quiz summary`;
 
-    for(let i = 0; i < quizLength; i++){
-        const correctAnswer : string = quizStatistics.question[i].correctAnswer;
-        const chosenAnswer : string = quizStatistics.question[i].chosenAnswer;
-        const timeSpent : number = quizStatistics.question[i].timeSpent;
+    // for(let i = 0; i < quizLength; i++){
+    //     const correctAnswer : string = quizStatistics.question[i].correctAnswer;
+    //     const chosenAnswer : string = quizStatistics.question[i].chosenAnswer;
+    //     const timeSpent : number = quizStatistics.question[i].timeSpent;
 
-        let buttonText : string = "<pre>" + currentQuiz.quiz[i].question + chosenAnswer +
-                        `\n Time spent: ${timeSpent}`;
+    //     let buttonText : string = "<pre>" + currentQuiz.quiz[i].question + chosenAnswer +
+    //                     `\n Time spent: ${timeSpent}` +
+    //                     `\n Average time to correct answer: ${}`;
 
-        const button = document.createElement('button');
+    //     const button = document.createElement('button');
 
-        if (correctAnswer !== chosenAnswer){
-            totalPenalty += currentQuiz.quiz[i].penalty;
-            button.classList.add('wrong-answer');
-            buttonText += `\n Penalty: ${currentQuiz.quiz[i].penalty}`
-        }
+    //     if (correctAnswer !== chosenAnswer){
+    //         button.classList.add('wrong-answer');
+    //         buttonText += `\n Penalty: ${currentQuiz.quiz[i].penalty}`;
+    //     }
 
-        buttonText += "</pre>";
+    //     buttonText += "</pre>";
 
-        totalScore += timeSpent;
+    //     button.innerHTML = buttonText;
+    //     button.classList.add('btn');
+    //     answerButtonsElement.appendChild(button);
+    // }
 
-        button.innerHTML = buttonText;
-        button.classList.add('btn');
-        answerButtonsElement.appendChild(button);
-    }
-
-    scoreCounterElement.innerText = `Total Score = ${totalPenalty} + ${totalScore} = ${totalPenalty + totalScore}`;
-    quizStatistics.finalScore = totalPenalty + totalScore;
+    // scoreCounterElement.innerText = `Total Score = ${}`;
 
     addClass(finishButton, hideClass);
     addClass(previousButton, hideClass);
     addClass(nextButton, hideClass);
 
     removeClass(saveScoreButton, hideClass);
-    removeClass(saveScoreAndStatsButton, hideClass);
-
-    saveScoreButton.addEventListener('click', saveScore);
-    saveScoreAndStatsButton.addEventListener('click', saveScoreAndStats);
+    saveScoreButton.innerHTML = 'Finish the test';
+    saveScoreButton.addEventListener('click', () => reloadPage());
 }
 
 function setNextQuestion() {
@@ -166,10 +241,18 @@ function setNextQuestion() {
         return;
     }
 
+    if (currentQuestion === 0){
+        previousButton.classList.remove('disabled-button');
+    }
+
     addQuestionTime();
     currentQuestion += 1;
     setQuestionTime();
     showQuestion(currentQuiz.quiz[currentQuestion]);
+
+    if (currentQuestion + 1 === quizLength){
+        nextButton.classList.add('disabled-button');
+    }
 }
 
 function setPreviousQuestion() {
@@ -177,10 +260,18 @@ function setPreviousQuestion() {
         return;
     }
 
+    if (currentQuestion + 1 === quizLength){
+        nextButton.classList.remove('disabled-button');
+    }
+
     addQuestionTime();
     currentQuestion -= 1;
     setQuestionTime();
     showQuestion(currentQuiz.quiz[currentQuestion]);
+
+    if (currentQuestion === 0){
+        previousButton.classList.add('disabled-button');
+    }
 }
 
 function showQuestion(question : Question) {
@@ -207,6 +298,10 @@ function showQuestion(question : Question) {
 function selectAnswerListener(this: any, ev : Event) {
     if (quizStatistics.question[currentQuestion].chosenAnswer === ''){
         answeredQuestions += 1;
+
+        if (answeredQuestions === quizLength) {
+            finishButton.classList.remove('disabled-button');
+        }
     }
 
     quizStatistics.question[currentQuestion].chosenAnswer = this.innerHTML;

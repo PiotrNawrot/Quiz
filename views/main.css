@@ -114,7 +114,7 @@ body{
 }
 
 .start-btn, .ranking-btn, .next-btn, .previous-btn, 
-.exit-btn, .finish-btn, .score-btn, .score-stats-btn{
+.exit-btn, .finish-btn, .score-btn{
     font-size: 1.5rem;
     font-weight: bold;
     padding: 10px;
@@ -129,7 +129,7 @@ body{
 }
 
 .disabled-button {
-    background: #dddddd;
+    background-color: #ecf0f1;
 }
 
 @media only screen and (max-width: 767px) {
@@ -152,13 +152,13 @@ body{
     }
 
     .start-btn, .ranking-btn, .next-btn, .previous-btn, 
-    .exit-btn, .finish-btn, .score-btn, .score-stats-btn{
+    .exit-btn, .finish-btn, .score-btn{
         font-size: 1rem;
         font-weight: bold;
         padding: 10px;
     }
 
-    #intro-text, #question {
+    #intro-text, #question, #quizlist-msg {
         font-size: 1rem;
     }
 
