@@ -52,6 +52,7 @@ export class StatisticsDB {
 
 export class QuizStatisticsDB {
     question : StatisticsDB[];
+    quizname: string;
 
     constructor(length : number) {
         this.question = [];
@@ -60,4 +61,9 @@ export class QuizStatisticsDB {
             this.question.push(new StatisticsDB());
         }
     }
+}
+
+export class QuizQuestionAvg {
+    totalSolved : number = 0;
+    totalTime : number = 0;
 }

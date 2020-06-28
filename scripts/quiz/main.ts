@@ -1,4 +1,4 @@
-import { Quiz, Question, QuizStatistics, QuizStatisticsDB } from "./Quiz.js";
+import { Quiz, Question, QuizStatistics, QuizStatisticsDB, QuizQuestionAvg } from "./Quiz.js";
 import { Timer } from "./Timer.js"
 
 const startButton = document.getElementById('start-btn') as HTMLButtonElement;
@@ -123,25 +123,18 @@ async function onPageLoad() {
 
 async function fetchRanking() {
     removeClass(questionContainerElement, hideClass);
+    removeClass(answerButtonsElement, hideClass);
     addClass(startButton, hideClass);
     addClass(rankingButton, hideClass);
 
     questionElement.innerHTML = `Highest Scores!`;
 
-    const rankingArray : QuizStatistics[] = await fetch(this.getUrl('http://localhost:8080/api/quiz/' + quizname), {})
+    const rankingArray : number[] = await fetch('http://localhost:8080/api/quiz/totalstats/' + quizname, {})
             .then(response => response.json());
-
-    rankingArray.sort( (a : QuizStatistics, b : QuizStatistics) => {
-        if (a.finalScore >= b.finalScore) {
-            return 1;
-        } else {
-            return -1;
-        }
-    });
 
     for(let i = 0; i < rankingArray.length; i++){
         const button = document.createElement('button');
-        button.innerHTML = `${i + 1}. ${rankingArray[i].finalScore}`;
+        button.innerHTML = `${i + 1}. ${rankingArray[i]}`;
 
         button.classList.add('btn');
         answerButtonsElement.appendChild(button);
@@ -185,47 +178,53 @@ async function finishTest() {
         quizStatisticsDB.question[i].timeSpent = quizStatistics.question[i].timeSpent / timeStamp;
     }
 
+    quizStatisticsDB.quizname = quizname;
+
     const csrf = document.getElementById('_csrf') as HTMLInputElement;
-    await fetch(this.getUrl('http://localhost:8080/api/quiz/' + quizname), {
+    const finalResult : QuizStatistics = await fetch('http://localhost:8080/api/quiz/' + quizname, {
         method: 'POST',
         body: JSON.stringify(quizStatisticsDB),
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrf.value
         }
-    });
+    }).then(response => response.json());
 
-    // const myResult : QuizStatistics =
-    //             await fetch('http://localhost:8080/api/quiz/solved/' + quizname)
-    //                 .then(response => response.json());
+    const avgStats : QuizQuestionAvg[] =
+                await fetch('http://localhost:8080/api/quiz/avgtimes/' + quizname).then(response => response.json());
 
-    questionElement.innerHTML =
-        `Quiz summary`;
+    questionElement.innerHTML =`Quiz summary`;
 
-    // for(let i = 0; i < quizLength; i++){
-    //     const correctAnswer : string = quizStatistics.question[i].correctAnswer;
-    //     const chosenAnswer : string = quizStatistics.question[i].chosenAnswer;
-    //     const timeSpent : number = quizStatistics.question[i].timeSpent;
+    for(let i = 0; i < quizLength; i++){
+        const correctAnswer : string = finalResult.question[i].correctAnswer;
+        const chosenAnswer : string = finalResult.question[i].chosenAnswer;
+        const timeSpent : number = finalResult.question[i].timeSpent;
 
-    //     let buttonText : string = "<pre>" + currentQuiz.quiz[i].question + chosenAnswer +
-    //                     `\n Time spent: ${timeSpent}` +
-    //                     `\n Average time to correct answer: ${}`;
+        let buttonText : string = "<pre>" + currentQuiz.quiz[i].question + chosenAnswer +
+                        `\n Time spent: ${timeSpent}`;
 
-    //     const button = document.createElement('button');
+        if (avgStats[i].totalSolved > 0){
+            buttonText += `\n Average time to correct answer: ${avgStats[i].totalTime / avgStats[i].totalSolved}`;
+        } else {
+            buttonText += `\n Average time to correct answer: N/A`;
+        }
 
-    //     if (correctAnswer !== chosenAnswer){
-    //         button.classList.add('wrong-answer');
-    //         buttonText += `\n Penalty: ${currentQuiz.quiz[i].penalty}`;
-    //     }
+        const button = document.createElement('button');
 
-    //     buttonText += "</pre>";
+        if (correctAnswer !== chosenAnswer){
+            button.classList.add('wrong-answer');
+            buttonText += `\n Correct answer: ${correctAnswer}`;
+            buttonText += `\n Penalty: ${currentQuiz.quiz[i].penalty}`;
+        }
 
-    //     button.innerHTML = buttonText;
-    //     button.classList.add('btn');
-    //     answerButtonsElement.appendChild(button);
-    // }
+        buttonText += "</pre>";
 
-    // scoreCounterElement.innerText = `Total Score = ${}`;
+        button.innerHTML = buttonText;
+        button.classList.add('btn');
+        answerButtonsElement.appendChild(button);
+    }
+
+    scoreCounterElement.innerText = `Final Score = ${finalResult.finalScore}`;
 
     addClass(finishButton, hideClass);
     addClass(previousButton, hideClass);

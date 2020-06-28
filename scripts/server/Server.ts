@@ -5,20 +5,17 @@ import cookieParser = require("cookie-parser");
 import * as sqlite from "sqlite3";
 import session from 'express-session';
 import { MemoryStore } from 'express-session';
-import {DbHandlerOpen, DbHandlerAll, DbHandlerRun, DbHandlerGet} from "./DBWrapper";
+import {DbHandlerRun, getQuizlist, getQuiz, getTotalQuizStats, getQuizAvgTimes, addQuizStats, isQuizSolved} from "./DBWrapper";
 import {User} from "./User"
 import {promisify} from 'util';
 import logger from 'morgan';
-import { QuizStatistics, Quiz, QuizStatisticsDB } from "../quiz/Quiz";
-import e = require("express");
+import {QuizStatistics, Quiz, QuizStatisticsDB, QuizQuestionAvg} from "../quiz/Quiz";
 
 sqlite.verbose();
 const csrfProtection = csurf({ cookie: true });
 const app : express.Application = express();
 const sessionStore : MemoryStore = new MemoryStore();
 const user : User = new User();
-
-console.log('wypisz cokolwiek');
 
 const completeUserLogout = (request: express.Request, response: express.Response, next: express.NextFunction) => {
     sessionStore.all((err : any, sessions : any) => {
@@ -71,36 +68,6 @@ app.use((request: express.Request, response: express.Response, next: express.Nex
     next();
 })
 
-async function getQuizlist(db: sqlite.Database) {
-    return DbHandlerAll(db, "SELECT quizname FROM quiz", []).then((rows : any[]) => {
-        return rows.map((row) => row.quizname);
-    })
-}
-
-async function getQuiz(db: sqlite.Database, quizname : string) {
-    return DbHandlerGet(db, "SELECT * FROM quiz WHERE quizname = ?;", [quizname]).then((row : any) => {
-        return row.quizcontent;
-    })
-}
-
-async function addQuizStats(db: sqlite.Database, quizname : string, username : string, quizstatistics : string) {
-    return DbHandlerRun(db,
-        "INSERT OR REPLACE INTO quizstats (quizname, username, quizstatistics) VALUES (?, ?, ?);",
-            [quizname, username, quizstatistics]);
-}
-
-async function isQuizSolved(db: sqlite.Database, quizname : string, username : string) {
-    return DbHandlerGet(db, "SELECT * FROM quizstats WHERE quizname = ? AND username = ?;", [quizname, username]).then((row : any) => {
-        console.log(row);
-
-        if (row) {
-            return true;
-        } else {
-            return false;
-        }
-    })
-}
-
 // Server api
 app.get('/api/quizlist', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
     const quizlist = await getQuizlist(response.locals.db);
@@ -112,10 +79,48 @@ app.get('/api/quiz/:id', async function(request: express.Request, response: expr
         next(createError(404));
     }
 
-    const quizContent = await getQuiz(response.locals.db, request.params.id);
+    const db : sqlite.Database = response.locals.db;
+    const quizname : string =  request.params.id;
 
-    request.session!.quizRequestTime = new Date().getTime() / 1000;
+    const quizContent = await getQuiz(db, quizname);
+    const quizRequestTime = new Date().getTime() / 1000;
+
+    request.session!.quizRequestTime = quizRequestTime;
     response.send(quizContent);
+});
+
+app.get('/api/quiz/totalstats/:id', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    if (!isUserLogged(request)) {
+        next(createError(404));
+    }
+
+    const db : sqlite.Database = response.locals.db;
+    const quizname : string =  request.params.id;
+
+    const stats = await getTotalQuizStats(db, quizname);
+    let topScores = [];
+    for (const row of stats) {
+        const tmpObject = JSON.parse(row.quizstatistics);
+        topScores.push(tmpObject.finalScore);
+    }
+
+    topScores = topScores.sort((a:any, b:any) => {
+        if (a > b) return -1;
+        if (a < b) return 1;
+        return 0;
+    }).slice(0, 5);
+
+    response.send(topScores);
+});
+
+app.get('/api/quiz/avgtimes/:id', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
+    if (!isUserLogged(request)) {
+        next(createError(404));
+    }
+
+    const db : sqlite.Database = response.locals.db;
+    const quizname : string =  request.params.id;
+    response.send(await getQuizAvgTimes(db, quizname));
 });
 
 app.get('/api/quiz/solved/:id', async function(request: express.Request, response: express.Response, next: express.NextFunction) {
@@ -123,8 +128,11 @@ app.get('/api/quiz/solved/:id', async function(request: express.Request, respons
         next(createError(404));
     }
 
-    console.log('issolved query');
-    response.send(await isQuizSolved(response.locals.db, request.session!.username, request.params.id));
+    const db : sqlite.Database = response.locals.db;
+    const quizname : string =  request.params.id;
+    const username : string = request.session!.username;
+
+    response.send(await isQuizSolved(db, quizname, username));
 });
 
 async function rateQuiz(quiz : Quiz, quizStatistics : QuizStatisticsDB, totalServerTime : number) : Promise<string> {
@@ -135,18 +143,42 @@ async function rateQuiz(quiz : Quiz, quizStatistics : QuizStatisticsDB, totalSer
 
     for(let i = 0; i < quizLength; i++){
         const correctAnswer : string = ratedQuiz.question[i].correctAnswer;
-        quizStatistics.question[i].chosenAnswer = ratedQuiz.question[i].chosenAnswer;
+        ratedQuiz.question[i].chosenAnswer = quizStatistics.question[i].chosenAnswer;
         const chosenAnswer : string = ratedQuiz.question[i].chosenAnswer;
-        ratedQuiz.question[i].timeSpent = totalServerTime * quizStatistics.question[i].timeSpent;
+        ratedQuiz.question[i].timeSpent = Math.ceil(totalServerTime * quizStatistics.question[i].timeSpent);
 
         if (correctAnswer !== chosenAnswer){
             totalPenalty += quiz.quiz[i].penalty;
         }
     }
 
-    ratedQuiz.finalScore = totalPenalty + totalServerTime;
+    ratedQuiz.finalScore = Math.ceil(totalPenalty + totalServerTime);
 
     return JSON.stringify(ratedQuiz);
+}
+
+async function updateAvgTimes(db: sqlite.Database, quizname: string, avgTimes : QuizQuestionAvg[], ratedQuiz : QuizStatistics) {
+    const newAvgTimes : QuizQuestionAvg[] = [];
+
+    for(let i = 0; i < ratedQuiz.question.length; i++) {
+        let quizAvg : QuizQuestionAvg;
+
+        if (i >= avgTimes.length){
+            quizAvg = new QuizQuestionAvg();
+        } else {
+            quizAvg = avgTimes[i];
+        }
+
+        if (ratedQuiz.question[i].chosenAnswer === ratedQuiz.question[i].correctAnswer) {
+            quizAvg.totalSolved += 1;
+            quizAvg.totalTime += ratedQuiz.question[i].timeSpent;
+        }
+
+        newAvgTimes.push(quizAvg);
+    }
+
+    DbHandlerRun(db, "INSERT OR REPLACE INTO avgquiztime (quizname, avgtimes) VALUES (?, ?);",
+        [quizname, JSON.stringify(newAvgTimes)]);
 }
 
 app.post('/api/quiz/:id', csrfProtection, async function(request: express.Request, response: express.Response, next: express.NextFunction) {
@@ -154,18 +186,26 @@ app.post('/api/quiz/:id', csrfProtection, async function(request: express.Reques
         next(createError(404));
     }
 
-    if (isQuizSolved(response.locals.db, request.session!.username, request.params.id)) {
+    const quizStatisticsDb : QuizStatisticsDB = request.body;
+    const db : sqlite.Database = response.locals.db;
+    const quizname : string =  quizStatisticsDb.quizname;
+    const username : string = request.session!.username;
+
+    if (await isQuizSolved(db, quizname, username)) {
         next(createError(404));
     }
 
-    console.log('poszedl post');
+    const timeLasted : number = new Date().getTime() / 1000 - request.session!.quizRequestTime;
 
-    const quiz : Quiz = await getQuiz(response.locals.db, request.params.id);
-    const quizStatistics : QuizStatistics = new QuizStatistics(quiz);
-    const ratedQuiz : string = await rateQuiz(quiz, quizStatistics, new Date().getTime() / 1000 -
-                                                                            request.session!.quizRequestTime);
-    await addQuizStats(response.locals.db, request.session!.username, request.params.id, ratedQuiz);
-    response.redirect('/');
+    const avgTimes : QuizQuestionAvg[] = JSON.parse(await getQuizAvgTimes(db, quizname));
+    const quizContent : string = (await getQuiz(db, quizname));
+    const quiz : Quiz = JSON.parse(quizContent);
+    const ratedQuiz : string = await rateQuiz(quiz, quizStatisticsDb, timeLasted);
+
+    await addQuizStats(db, quizname, username, ratedQuiz);
+    await updateAvgTimes(db, quizname, avgTimes, JSON.parse(ratedQuiz));
+
+    response.send(ratedQuiz);
 });
 
 // Main page rendering
@@ -179,9 +219,7 @@ app.get('/', csrfProtection, async function(request: express.Request, response: 
 
 // Quiz page rendering
 app.get('/quiz', csrfProtection, function(request: express.Request, response: express.Response, next: express.NextFunction) {
-    console.log('get quiz');
     if (isUserLogged(request)){
-        console.log('XD');
         response.render('quiz', {username: request.session!.username, csrfToken: request.csrfToken()});
     } else {
         next(createError(404));

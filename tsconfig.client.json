@@ -9,7 +9,7 @@
         "esModuleInterop": true,
         "noImplicitAny": true,
         "sourceMap": true,
-        "outDir": "dist/public/src/",
+        "outDir": "dist/server/public/src/",
         "baseUrl": ".",
         "paths": {
             "*": [

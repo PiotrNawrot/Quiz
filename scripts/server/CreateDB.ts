@@ -105,6 +105,13 @@ async function addQuiz(db : sqlite.Database, quizname : string, quizcontent : st
         [quizname, quizcontent]);
 }
 
+async function addQuizAvereges(db : sqlite.Database, quizname : string): Promise<any> {
+    const foo : any = [];
+    return DbHandlerRun(db,
+        "INSERT OR REPLACE INTO avgquiztime (quizname, avgtimes) VALUES (?, ?);",
+        [quizname, JSON.stringify(foo)]);
+}
+
 async function dbInitialization() {
     const db : sqlite.Database = await DbHandlerOpen("quiz.db");
 
@@ -112,6 +119,7 @@ async function dbInitialization() {
     await DbHandlerRun(db, "DROP TABLE IF EXISTS user;", []);
     await DbHandlerRun(db, "DROP TABLE IF EXISTS quiz;", []);
     await DbHandlerRun(db, "DROP TABLE IF EXISTS quizstats;", []);
+    await DbHandlerRun(db, "DROP TABLE IF EXISTS avgquiztime;", []);
 
     console.log('Creating users');
     await DbHandlerRun(db, "CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)", []);
@@ -125,6 +133,11 @@ async function dbInitialization() {
 
     console.log('Creating quizstats');
     await DbHandlerRun(db, "CREATE TABLE IF NOT EXISTS quizstats (quizname TEXT, username TEXT, quizstatistics TEXT, PRIMARY KEY (quizname, username))", []);
+
+    console.log('Creating avgquiztime');
+    await DbHandlerRun(db, "CREATE TABLE IF NOT EXISTS avgquiztime (quizname TEXT PRIMARY KEY, avgtimes TEXT)", []);
+    await addQuizAvereges(db, 'Matematyczny quiz');
+    await addQuizAvereges(db, 'Matematyczny quiz++');
 
     console.log('Db init finished');
 }
