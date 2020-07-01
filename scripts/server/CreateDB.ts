@@ -1,9 +1,8 @@
 import * as sqlite from "sqlite3";
 import {DbHandlerOpen, DbHandlerAll, DbHandlerRun, DbHandlerGet} from "./DBWrapper";
-import {User} from "./User"
+import * as user from "./User"
 
 sqlite.verbose();
-const user : User = new User();
 
 const matematycznyQuiz : string = `{
     "quizname": "Matematyczny quiz"

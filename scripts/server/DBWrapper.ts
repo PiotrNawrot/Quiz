@@ -19,7 +19,6 @@ export async function addQuizStats(db: sqlite3.Database, quizname : string, user
 }
 
 export async function isQuizSolved(db: sqlite3.Database, quizname : string, username : string) {
-    console.log('isquizsolved', quizname, username);
     return DbHandlerGet(db, "SELECT * FROM quizstats WHERE quizname = ? AND username = ?;", [quizname, username]).then((row : any) => {
         if (row) {
             return true;
@@ -28,6 +27,13 @@ export async function isQuizSolved(db: sqlite3.Database, quizname : string, user
         }
     })
 }
+
+export async function getQuizSolvedStats(db: sqlite3.Database, quizname : string, username : string) {
+    return DbHandlerGet(db, "SELECT * FROM quizstats WHERE quizname = ? AND username = ?;", [quizname, username]).then((row : any) => {
+        return row.quizstatistics;
+    })
+}
+
 
 export async function getTotalQuizStats(db: sqlite3.Database, quizname : string) {
     return DbHandlerAll(db, "SELECT * FROM quizstats WHERE quizname = ?", [quizname]).then((rows : any[]) => {

@@ -3,6 +3,8 @@ import { Timer } from "./Timer.js"
 
 const startButton = document.getElementById('start-btn') as HTMLButtonElement;
 const rankingButton = document.getElementById('ranking-btn') as HTMLButtonElement;
+const myScoreButton = document.getElementById('myscore-btn') as HTMLButtonElement;
+
 const nextButton = document.getElementById('next-btn') as HTMLButtonElement;
 const previousButton = document.getElementById('previous-btn') as HTMLButtonElement;
 const finishButton = document.getElementById('finish-btn') as HTMLButtonElement;
@@ -35,6 +37,55 @@ let timer : Timer;
 
 onPageLoad();
 
+async function myScoreFetch() {
+    removeClass(questionContainerElement, hideClass);
+    removeClass(answerButtonsElement, hideClass);
+    addClass(startButton, hideClass);
+    addClass(rankingButton, hideClass);
+    addClass(myScoreButton, hideClass);
+
+    resetQuestion();
+
+    const finalResult : QuizStatistics = await fetch('http://localhost:8080/api/quizsolved/' + quizname)
+                .then(response => response.json());
+
+    const avgStats : QuizQuestionAvg[] =
+                await fetch('http://localhost:8080/api/quiz/avgtimes/' + quizname).then(response => response.json());
+
+    questionElement.innerHTML =`Quiz summary`;
+
+    for(let i = 0; i < quizLength; i++){
+        const correctAnswer : string = finalResult.question[i].correctAnswer;
+        const chosenAnswer : string = finalResult.question[i].chosenAnswer;
+        const timeSpent : number = finalResult.question[i].timeSpent;
+
+        let buttonText : string = "<pre>" + currentQuiz.quiz[i].question + chosenAnswer +
+                        `\n Time spent: ${timeSpent}`;
+
+        if (avgStats[i].totalSolved > 0){
+            buttonText += `\n Average time to correct answer: ${avgStats[i].totalTime / avgStats[i].totalSolved}`;
+        } else {
+            buttonText += `\n Average time to correct answer: N/A`;
+        }
+
+        const button = document.createElement('button');
+
+        if (correctAnswer !== chosenAnswer){
+            button.classList.add('wrong-answer');
+            buttonText += `\n Correct answer: ${correctAnswer}`;
+            buttonText += `\n Penalty: ${currentQuiz.quiz[i].penalty}`;
+        }
+
+        buttonText += "</pre>";
+
+        button.innerHTML = buttonText;
+        button.classList.add('btn');
+        answerButtonsElement.appendChild(button);
+    }
+
+    scoreCounterElement.innerText = `Final Score = ${finalResult.finalScore}`;
+}
+
 async function selectQuizListener(this: any, ev : Event) {
     quizname = this.innerHTML;
 
@@ -52,6 +103,8 @@ async function selectQuizListener(this: any, ev : Event) {
     if (await solvedAlready()) {
         startButton.innerHTML = 'You solved it already';
         startButton.classList.add('wrong-answer');
+        removeClass(myScoreButton, hideClass);
+        myScoreButton.addEventListener('click', myScoreFetch);
     }
 }
 
@@ -142,7 +195,7 @@ async function fetchRanking() {
 }
 
 function reloadPage() {
-    window.location.reload();
+    window.location.replace("http://localhost:8080/logged");
 }
 
 function resetQuestion() {
@@ -194,6 +247,8 @@ async function finishTest() {
                 await fetch('http://localhost:8080/api/quiz/avgtimes/' + quizname).then(response => response.json());
 
     questionElement.innerHTML =`Quiz summary`;
+
+    console.log(finalResult, avgStats);
 
     for(let i = 0; i < quizLength; i++){
         const correctAnswer : string = finalResult.question[i].correctAnswer;

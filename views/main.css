@@ -114,7 +114,7 @@ body{
 }
 
 .start-btn, .ranking-btn, .next-btn, .previous-btn, 
-.exit-btn, .finish-btn, .score-btn{
+.exit-btn, .finish-btn, .score-btn, .myscore-btn{
     font-size: 1.5rem;
     font-weight: bold;
     padding: 10px;
@@ -152,7 +152,7 @@ body{
     }
 
     .start-btn, .ranking-btn, .next-btn, .previous-btn, 
-    .exit-btn, .finish-btn, .score-btn{
+    .exit-btn, .finish-btn, .score-btn, .myscore-btn{
         font-size: 1rem;
         font-weight: bold;
         padding: 10px;
