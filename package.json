@@ -31,7 +31,7 @@
     "http-errors": "~1.6.3",
     "mocha-webdriver": "^0.2.8",
     "morgan": "^1.10.0",
-    "pug": "^2.0.4",
+    "pug": "^3.0.1",
     "sqlite3": "^4.2.0",
     "typescript": "^3.9.5"
   },
